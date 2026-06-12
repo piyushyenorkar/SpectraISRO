@@ -1,0 +1,119 @@
+.slider-container {
+  position: relative;
+  width: 100%;
+  aspect-ratio: 1 / 1;
+  max-height: 512px;
+  border-radius: var(--radius-lg);
+  overflow: hidden;
+  cursor: col-resize;
+  user-select: none;
+  -webkit-user-select: none;
+  border: 1px solid var(--border);
+  background: #f1f5f9;
+  box-shadow: var(--shadow);
+  transition: box-shadow var(--transition);
+}
+
+.slider-container:hover,
+.slider-dragging {
+  box-shadow: var(--shadow-lg);
+  border-color: var(--border-hover);
+}
+
+/* ─── Images ───────────────────────────────────────────── */
+.slider-before,
+.slider-after {
+  position: absolute;
+  inset: 0;
+}
+
+.slider-before img,
+.slider-after img {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  display: block;
+  background: #f1f5f9;
+}
+
+.slider-before {
+  z-index: 2;
+}
+
+/* ─── Labels ───────────────────────────────────────────── */
+.slider-label {
+  position: absolute;
+  bottom: 16px;
+  padding: 6px 14px;
+  border-radius: 100px;
+  font-size: 0.7rem;
+  font-weight: 700;
+  letter-spacing: 1px;
+  text-transform: uppercase;
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  z-index: 5;
+  box-shadow: var(--shadow-sm);
+}
+
+.slider-label-before {
+  left: 16px;
+  background: rgba(255, 255, 255, 0.8);
+  border: 1px solid rgba(0, 0, 0, 0.1);
+  color: var(--text-secondary);
+}
+
+.slider-label-after {
+  right: 16px;
+  background: rgba(37, 99, 235, 0.15);
+  border: 1px solid rgba(37, 99, 235, 0.3);
+  color: var(--accent-primary);
+}
+
+/* ─── Divider ──────────────────────────────────────────── */
+.slider-divider {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  width: 0;
+  z-index: 10;
+  transform: translateX(-50%);
+}
+
+.slider-line {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 50%;
+  width: 2px;
+  transform: translateX(-50%);
+  background: #ffffff;
+  box-shadow: 0 0 8px rgba(0, 0, 0, 0.2);
+}
+
+.slider-handle {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  background: #ffffff;
+  border: 1px solid rgba(0, 0, 0, 0.1);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--text-secondary);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+  transition: all var(--transition-fast);
+}
+
+.slider-container:hover .slider-handle,
+.slider-dragging .slider-handle {
+  background: var(--accent-primary);
+  border-color: var(--accent-primary);
+  color: #ffffff;
+  box-shadow: 0 4px 16px rgba(37, 99, 235, 0.3);
+  transform: translate(-50%, -50%) scale(1.1);
+}
