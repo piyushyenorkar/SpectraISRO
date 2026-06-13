@@ -1,0 +1,3 @@
+# ONNX model for browser inference goes here
+# Download spectra_generator.onnx after training in Google Colab
+# See README.md for instructions
