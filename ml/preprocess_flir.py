@@ -1,24 +1,25 @@
 """
-SPECTRA — FLIR Dataset Preprocessing Script
-Converts raw FLIR dataset into paired A/B format for pix2pix training.
+SPECTRA - FLIR ADAS v2 Dataset Preprocessing Script
+Converts raw FLIR ADAS v2 dataset into paired A/B format for pix2pix training.
 
 Usage:
-    python preprocess_flir.py --input C:/path/to/FLIR_Dataset --output data
+    python preprocess_flir.py --input C:/Users/piyus/Downloads/FLIR_Dataset --output data
 
 Output structure:
     data/
-    ├── train/
-    │   ├── A/  (IR grayscale images)
-    │   └── B/  (RGB color images)
-    └── val/
-        ├── A/
-        └── B/
+    +-- train/
+    |   +-- A/  (IR grayscale images, 256x256)
+    |   +-- B/  (RGB color images, 256x256)
+    +-- val/
+        +-- A/
+        +-- B/
 """
 
 import os
+import json
+import re
 import argparse
 import random
-import shutil
 from pathlib import Path
 
 from PIL import Image
@@ -27,76 +28,92 @@ from tqdm import tqdm
 import config
 
 
-def find_image_pairs(flir_root: str) -> list[tuple[str, str]]:
+def find_adas_v2_pairs(flir_root: str) -> dict:
     """
-    Find paired thermal/RGB images in the FLIR dataset.
+    Find paired thermal/RGB images in FLIR ADAS v2 dataset using index.json.
 
-    FLIR dataset structure varies, but commonly:
-        FLIR_Dataset/
-        ├── train/
-        │   ├── thermal_8_bit/ or PreviewData/
-        │   └── RGB/
-        └── val/
-            ├── thermal_8_bit/ or PreviewData/
-            └── RGB/
+    The FLIR ADAS v2 dataset pairs thermal and RGB videos. The thermal video
+    descriptions contain a JSON snippet like {"RGB": "videoId"} that maps
+    each thermal video to its corresponding RGB video. Frames are matched
+    by frameIndex within these paired videos.
+
+    Filename pattern: video-{videoId}-frame-{frameIndex:06d}-{datasetFrameId}.jpg
     """
     flir_root = Path(flir_root)
-    pairs = []
+    adas_root = flir_root / "FLIR_ADAS_v2"
+    if not adas_root.exists():
+        adas_root = flir_root
 
-    # Try multiple possible directory structures
-    possible_structures = [
-        # Structure 1: train/thermal_8_bit + train/RGB
-        ("train/thermal_8_bit", "train/RGB"),
-        ("val/thermal_8_bit", "val/RGB"),
-        # Structure 2: train/PreviewData + train/RGB
-        ("train/PreviewData", "train/RGB"),
-        ("val/PreviewData", "val/RGB"),
-        # Structure 3: Flat structure
-        ("thermal_8_bit", "RGB"),
-        ("thermal", "visible"),
-        ("ir", "rgb"),
-        ("IR", "RGB"),
-        # Structure 4: FLIR ADAS
-        ("video/thermal_8_bit", "video/RGB"),
-    ]
+    result = {"train": [], "val": []}
 
-    for ir_subdir, rgb_subdir in possible_structures:
-        ir_dir = flir_root / ir_subdir
-        rgb_dir = flir_root / rgb_subdir
+    for split in ["train", "val"]:
+        thermal_data = adas_root / f"images_thermal_{split}" / "data"
+        rgb_data = adas_root / f"images_rgb_{split}" / "data"
+        thermal_index_file = adas_root / f"images_thermal_{split}" / "index.json"
+        rgb_index_file = adas_root / f"images_rgb_{split}" / "index.json"
 
-        if ir_dir.exists() and rgb_dir.exists():
-            print(f"  Found: {ir_subdir} ↔ {rgb_subdir}")
+        if not all(p.exists() for p in [thermal_data, rgb_data, thermal_index_file, rgb_index_file]):
+            print(f"  [!] Missing {split} directories or index files, skipping...")
+            continue
 
-            ir_files = {f.stem: f for f in ir_dir.iterdir() if f.suffix.lower() in (".jpg", ".jpeg", ".png", ".bmp", ".tiff")}
-            rgb_files = {f.stem: f for f in rgb_dir.iterdir() if f.suffix.lower() in (".jpg", ".jpeg", ".png", ".bmp", ".tiff")}
+        print(f"\n  Loading {split} index files...")
 
-            # Match by filename stem
-            common_stems = set(ir_files.keys()) & set(rgb_files.keys())
-            for stem in common_stems:
-                pairs.append((str(ir_files[stem]), str(rgb_files[stem])))
+        with open(thermal_index_file, "r", encoding="utf-8") as f:
+            th_idx = json.load(f)
+        with open(rgb_index_file, "r", encoding="utf-8") as f:
+            rgb_idx = json.load(f)
 
-    if not pairs:
-        # Fallback: search recursively for any thermal/RGB pair
-        print("  Scanning recursively for image pairs...")
-        all_files = list(flir_root.rglob("*"))
-        image_files = [f for f in all_files if f.suffix.lower() in (".jpg", ".jpeg", ".png", ".bmp", ".tiff")]
+        # Step 1: Extract thermal_videoId -> rgb_videoId mapping from descriptions
+        th_to_rgb_vid = {}
+        for v in th_idx.get("videos", []):
+            desc = v.get("description", "")
+            m = re.search(r'"RGB":\s*"(\w+)"', desc)
+            if m:
+                th_to_rgb_vid[v["id"]] = m.group(1)
 
-        # Group by filename stem
-        by_stem = {}
-        for f in image_files:
-            by_stem.setdefault(f.stem, []).append(f)
+        print(f"    Video mappings: {len(th_to_rgb_vid)}/{len(th_idx.get('videos', []))} thermal videos mapped to RGB")
 
-        for stem, files in by_stem.items():
-            if len(files) >= 2:
-                # Heuristic: smaller file is likely IR (grayscale), larger is RGB
-                files.sort(key=lambda f: f.stat().st_size)
-                pairs.append((str(files[0]), str(files[-1])))
+        # Step 2: Build RGB frame lookup: (rgb_videoId, frameIndex) -> datasetFrameId
+        rgb_by_vid_frame = {}
+        for fr in rgb_idx.get("frames", []):
+            vm = fr["videoMetadata"]
+            key = (vm["videoId"], vm["frameIndex"])
+            rgb_by_vid_frame[key] = fr["datasetFrameId"]
 
-    return pairs
+        # Step 3: For each thermal frame, find the matching RGB frame
+        matched = 0
+        for fr in th_idx.get("frames", []):
+            vm = fr["videoMetadata"]
+            th_vid_id = vm["videoId"]
+            frame_idx = vm["frameIndex"]
+            th_ds_frame_id = fr["datasetFrameId"]
+
+            rgb_vid_id = th_to_rgb_vid.get(th_vid_id)
+            if not rgb_vid_id:
+                continue
+
+            rgb_ds_frame_id = rgb_by_vid_frame.get((rgb_vid_id, frame_idx))
+            if not rgb_ds_frame_id:
+                continue
+
+            # Construct filenames
+            th_filename = f"video-{th_vid_id}-frame-{frame_idx:06d}-{th_ds_frame_id}.jpg"
+            rgb_filename = f"video-{rgb_vid_id}-frame-{frame_idx:06d}-{rgb_ds_frame_id}.jpg"
+
+            th_path = thermal_data / th_filename
+            rgb_path = rgb_data / rgb_filename
+
+            if th_path.exists() and rgb_path.exists():
+                result[split].append((str(th_path), str(rgb_path)))
+                matched += 1
+
+        print(f"    Matched {matched} IR/RGB pairs for {split}")
+
+    return result
 
 
-def preprocess_and_save(pairs: list[tuple[str, str]], output_root: str, val_ratio: float = 0.1):
-    """Preprocess image pairs and save in pix2pix format."""
+def preprocess_and_save(split_pairs: dict, output_root: str):
+    """Preprocess image pairs and save in pix2pix A/B format."""
     output_root = Path(output_root)
 
     # Create directories
@@ -104,86 +121,87 @@ def preprocess_and_save(pairs: list[tuple[str, str]], output_root: str, val_rati
         for domain in ["A", "B"]:
             (output_root / split / domain).mkdir(parents=True, exist_ok=True)
 
-    # Shuffle and split
-    random.shuffle(pairs)
-    val_count = max(1, int(len(pairs) * val_ratio))
-    val_pairs = pairs[:val_count]
-    train_pairs = pairs[val_count:]
+    total_saved = {"train": 0, "val": 0}
 
-    print(f"\n📊 Split: {len(train_pairs)} train | {len(val_pairs)} val")
+    for split_name, pairs in split_pairs.items():
+        if not pairs:
+            print(f"\n  [!] No pairs for {split_name}, skipping")
+            continue
 
-    # Process each split
-    for split_name, split_pairs in [("train", train_pairs), ("val", val_pairs)]:
-        print(f"\n🔄 Processing {split_name}...")
-        for idx, (ir_path, rgb_path) in enumerate(tqdm(split_pairs, desc=f"  {split_name}")):
+        random.shuffle(pairs)
+        print(f"\n  Processing {split_name} ({len(pairs)} pairs)...")
+
+        for idx, (ir_path, rgb_path) in enumerate(
+            tqdm(pairs, desc=f"    {split_name}", unit="img")
+        ):
             try:
-                # Load images
-                ir_img = Image.open(ir_path).convert("L")    # Force grayscale
-                rgb_img = Image.open(rgb_path).convert("RGB")  # Force RGB
+                ir_img = Image.open(ir_path).convert("L")
+                rgb_img = Image.open(rgb_path).convert("RGB")
 
-                # Resize to target size
-                ir_img = ir_img.resize((config.IMG_SIZE, config.IMG_SIZE), Image.BICUBIC)
-                rgb_img = rgb_img.resize((config.IMG_SIZE, config.IMG_SIZE), Image.BICUBIC)
+                ir_img = ir_img.resize(
+                    (config.IMG_SIZE, config.IMG_SIZE), Image.BICUBIC
+                )
+                rgb_img = rgb_img.resize(
+                    (config.IMG_SIZE, config.IMG_SIZE), Image.BICUBIC
+                )
 
-                # Save with consistent naming
                 filename = f"{idx:06d}.png"
                 ir_img.save(output_root / split_name / "A" / filename)
                 rgb_img.save(output_root / split_name / "B" / filename)
+                total_saved[split_name] += 1
 
             except Exception as e:
-                print(f"  ⚠️  Skipped {ir_path}: {e}")
+                print(f"\n  [!] Skipped {Path(ir_path).name}: {e}")
                 continue
 
-    # Print summary
-    train_a_count = len(list((output_root / "train" / "A").iterdir()))
-    val_a_count = len(list((output_root / "val" / "A").iterdir()))
-    print(f"\n✅ Dataset ready!")
-    print(f"   Train: {train_a_count} pairs → {output_root / 'train'}")
-    print(f"   Val:   {val_a_count} pairs → {output_root / 'val'}")
+    print(f"\n{'='*50}")
+    print(f"DONE! Dataset ready.")
+    print(f"   Train: {total_saved['train']} pairs -> {output_root / 'train'}")
+    print(f"   Val:   {total_saved['val']} pairs -> {output_root / 'val'}")
+    print(f"   Size:  {config.IMG_SIZE}x{config.IMG_SIZE} PNG")
+    print(f"{'='*50}")
 
 
 def main():
-    parser = argparse.ArgumentParser(description="Preprocess FLIR dataset for SPECTRA")
+    parser = argparse.ArgumentParser(
+        description="Preprocess FLIR ADAS v2 dataset for SPECTRA pix2pix training"
+    )
     parser.add_argument(
         "--input",
         type=str,
         required=True,
-        help="Path to downloaded FLIR dataset folder",
+        help="Path to downloaded FLIR dataset folder (containing FLIR_ADAS_v2/)",
     )
     parser.add_argument(
         "--output",
         type=str,
         default=config.DATA_ROOT,
-        help="Output directory for processed dataset",
-    )
-    parser.add_argument(
-        "--val-ratio",
-        type=float,
-        default=config.VAL_SPLIT,
-        help="Fraction of data to use for validation",
+        help="Output directory for processed dataset (default: data)",
     )
     args = parser.parse_args()
 
-    print("🔬 SPECTRA — FLIR Dataset Preprocessor")
+    print("=" * 50)
+    print("SPECTRA - FLIR ADAS v2 Preprocessor")
+    print("=" * 50)
     print(f"   Input:  {args.input}")
     print(f"   Output: {args.output}")
-    print(f"   Size:   {config.IMG_SIZE}×{config.IMG_SIZE}")
+    print(f"   Size:   {config.IMG_SIZE}x{config.IMG_SIZE}")
     print()
 
-    # Find pairs
-    print("🔍 Searching for paired IR/RGB images...")
-    pairs = find_image_pairs(args.input)
+    print("Searching for paired IR/RGB images...")
+    split_pairs = find_adas_v2_pairs(args.input)
 
-    if not pairs:
-        print("❌ No image pairs found! Check your dataset structure.")
-        print("   Expected: thermal_8_bit/ + RGB/ directories")
-        print("   Or any two directories with matching filenames")
+    total = sum(len(v) for v in split_pairs.values())
+    if total == 0:
+        print("\nERROR: No image pairs found! Check your dataset structure.")
+        print("   Expected: FLIR_Dataset/FLIR_ADAS_v2/images_thermal_train/data/")
         return
 
-    print(f"✅ Found {len(pairs)} paired images")
+    print(f"\nTotal matched: {total} pairs")
+    print(f"   Train: {len(split_pairs['train'])}")
+    print(f"   Val:   {len(split_pairs['val'])}")
 
-    # Process
-    preprocess_and_save(pairs, args.output, args.val_ratio)
+    preprocess_and_save(split_pairs, args.output)
 
 
 if __name__ == "__main__":
