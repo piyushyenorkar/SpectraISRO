@@ -47,7 +47,10 @@ export default function ProcessPage() {
       <LoadingOverlay isVisible={isLoading} />
 
       <main className="process-page">
-        <div className="vertical-branding">SPECTRA</div>
+        <div className="vertical-branding-container">
+          <img src="/faviconspectra.png" alt="SPECTRA Logo" className="vertical-branding-logo" />
+          <div className="vertical-branding">SPECTRA</div>
+        </div>
         {/* Animated background across the whole layout */}
         <div className="process-bg">
           <div style={{ position: 'absolute', inset: 0, opacity: 0.5 }}>
@@ -84,6 +87,9 @@ export default function ProcessPage() {
 
           {/* Split Layout */}
           <div className="process-split-layout animate-fade-in-up">
+            <div className="process-center-logo">
+              <img src="/faviconspectra.png" alt="SPECTRA Logo" />
+            </div>
 
             {/* Left Box: Upload */}
             <div className="process-box glass-panel process-box-upload">
