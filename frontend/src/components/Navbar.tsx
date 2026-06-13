@@ -18,17 +18,7 @@ export default function Navbar() {
         {location.pathname !== '/process' ? (
           <Link to="/" className="navbar-brand">
             <div className="navbar-logo">
-              <svg width="28" height="28" viewBox="0 0 28 28" fill="none">
-                <defs>
-                  <linearGradient id="logo-grad" x1="0" y1="0" x2="28" y2="28">
-                    <stop offset="0%" stopColor="#4f8ef7" />
-                    <stop offset="100%" stopColor="#7c3aed" />
-                  </linearGradient>
-                </defs>
-                <circle cx="14" cy="14" r="12" stroke="url(#logo-grad)" strokeWidth="2.5" fill="none" />
-                <circle cx="14" cy="14" r="5" fill="url(#logo-grad)" />
-                <path d="M14 2 L14 6 M14 22 L14 26 M2 14 L6 14 M22 14 L26 14" stroke="url(#logo-grad)" strokeWidth="1.5" strokeLinecap="round" />
-              </svg>
+              <img src="/faviconspectra.png" alt="SPECTRA Logo" width="28" height="28" />
             </div>
             <span className="navbar-title">SPECTRA</span>
           </Link>
