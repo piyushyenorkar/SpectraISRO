@@ -97,32 +97,6 @@
   height: calc(100vh - 280px);
   min-height: 360px;
   max-height: 420px;
-  position: relative;
-}
-
-.process-center-logo {
-  position: absolute;
-  top: 50%;
-  left: 50%;
-  transform: translate(-50%, -50%);
-  width: 40px;
-  height: 40px;
-  z-index: 20;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  transition: transform var(--transition);
-}
-
-.process-center-logo:hover {
-  transform: translate(-50%, -50%) scale(1.05);
-}
-
-.process-center-logo img {
-  width: 100%;
-  height: 100%;
-  object-fit: contain;
-  transform: translateX(-7px);
 }
 
 .glass-panel {

@@ -87,9 +87,6 @@ export default function ProcessPage() {
 
           {/* Split Layout */}
           <div className="process-split-layout animate-fade-in-up">
-            <div className="process-center-logo">
-              <img src="/faviconspectra.png" alt="SPECTRA Logo" />
-            </div>
 
             {/* Left Box: Upload */}
             <div className="process-box glass-panel process-box-upload">
