@@ -120,6 +120,9 @@
 .process-box-upload {
   display: flex;
   flex-direction: column;
+  position: relative;
+  padding: 0;
+  overflow: hidden;
 }
 
 .process-box-upload .upload-zone {
@@ -187,6 +190,8 @@
 
 .process-box-results {
   justify-content: center;
+  padding: 0;
+  overflow: hidden;
 }
 
 .process-empty-state {
@@ -253,17 +258,21 @@
 }
 
 .process-error {
+  position: absolute;
+  top: 16px;
+  left: 16px;
   display: flex;
   align-items: center;
   gap: 10px;
-  margin-top: 16px;
-  padding: 12px;
-  border-radius: var(--radius);
-  background: var(--error-bg);
-  border: 1px solid rgba(220, 38, 38, 0.2);
-  color: var(--error);
+  padding: 8px 16px;
+  border-radius: var(--radius-lg);
+  background: #ffffff;
+  color: #dc2626;
   font-size: 0.85rem;
-  font-weight: 500;
+  font-weight: 600;
+  z-index: 50;
+  box-shadow: 0 4px 15px rgba(0,0,0,0.15);
+  border: none;
 }
 
 @media (max-width: 992px) {

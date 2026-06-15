@@ -21,14 +21,7 @@
   z-index: 0;
 }
 
-.upload-zone:hover {
-  border-color: var(--accent-primary);
-  box-shadow: var(--shadow-glow);
-}
-
-.upload-zone:hover::before {
-  opacity: 0.03;
-}
+/* Hover effect removed as requested */
 
 .upload-zone-dragging {
   border: 2px dashed var(--accent-primary);
@@ -50,9 +43,8 @@
 
 .upload-zone-has-preview {
   padding: 0;
-  border-style: solid;
-  border-color: var(--border-hover);
-  background: #000;
+  border: none;
+  background: transparent;
 }
 
 .upload-input {
@@ -102,15 +94,19 @@
   height: 100%;
   position: relative;
   min-height: 280px;
+  flex-grow: 1;
 }
 
 .upload-preview-img {
+  position: absolute;
+  top: 0;
+  left: 0;
   width: 100%;
   height: 100%;
   object-fit: contain;
-  min-height: 280px;
-  background: #000;
+  background: transparent;
   display: block;
+  border-radius: var(--radius-lg);
 }
 
 .upload-preview-overlay {
@@ -157,13 +153,15 @@
   display: flex;
   align-items: center;
   gap: 8px;
-  margin-top: 16px;
   padding: 8px 16px;
-  border-radius: var(--radius);
-  background: var(--error-bg);
-  color: var(--error);
+  border-radius: var(--radius-lg);
+  background: #ffffff;
+  color: #dc2626;
   font-size: 0.85rem;
   font-weight: 500;
-  position: relative;
-  z-index: 1;
+  position: absolute;
+  top: 16px;
+  left: 16px;
+  z-index: 10;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.15);
 }
