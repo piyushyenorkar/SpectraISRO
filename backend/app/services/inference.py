@@ -44,13 +44,15 @@ class InferenceService:
         params = sum(p.numel() for p in self.model.parameters())
         print(f"   Parameters: {params:,}")
 
-    def colorize(self, file_bytes: bytes) -> dict:
+    def process(self, file_bytes: bytes) -> dict:
         """
-        Run colorization on uploaded image.
+        Run 2-stage processing on uploaded image.
 
         Returns dict with:
-            - colorized_image: base64 data URI
-            - ir_preview: base64 data URI of preprocessed IR input
+            - input_image: base64 data URI (200m TIR)
+            - super_resolved_image: base64 data URI (100m TIR)
+            - colorized_image: base64 data URI (100m RGB)
+            - reference_image: base64 data URI (100m RGB mock reference)
             - metrics: enhancement metrics
             - original_size: [width, height]
             - processed_size: [256, 256]
@@ -63,19 +65,28 @@ class InferenceService:
         input_tensor, original_size = load_and_preprocess(file_bytes)
         input_tensor = input_tensor.to(self.device)
 
-        # Inference
+        # Inference Stage 1: Model A (Super-Resolution Mock)
         with torch.inference_mode():
-            output_tensor = self.model(input_tensor)
+            # TODO: Call actual Model A here
+            sr_tensor = input_tensor  # Mocking SR output as identical to input for now
+        
+        # Inference Stage 2: Model B (Colorization)
+        with torch.inference_mode():
+            output_tensor = self.model(sr_tensor)
 
         processing_time_ms = (time.time() - start_time) * 1000
 
-        # Postprocess
+        # Postprocess Model B Output
         colorized_pil = tensor_to_pil(output_tensor)
         colorized_b64 = pil_to_base64(colorized_pil)
 
-        # Create IR preview (grayscale → 3-channel for display)
-        ir_pil = tensor_to_pil(input_tensor.repeat(1, 3, 1, 1))
-        ir_b64 = pil_to_base64(ir_pil)
+        # Postprocess Model A Output
+        sr_pil = tensor_to_pil(sr_tensor.repeat(1, 3, 1, 1))
+        sr_b64 = pil_to_base64(sr_pil)
+
+        # Postprocess Input
+        input_pil = tensor_to_pil(input_tensor.repeat(1, 3, 1, 1))
+        input_b64 = pil_to_base64(input_pil)
 
         # Compute enhancement metrics
         ir_np = np.array(ir_pil).astype(np.float32) / 255.0
@@ -85,8 +96,10 @@ class InferenceService:
         enhancement = compute_enhancement_metrics(ir_np, color_np)
 
         return {
+            "input_image": input_b64,
+            "super_resolved_image": sr_b64,
             "colorized_image": colorized_b64,
-            "ir_preview": ir_b64,
+            "reference_image": colorized_b64, # Mocking reference image
             "metrics": {
                 "processing_time_ms": round(processing_time_ms, 1),
                 **enhancement,

@@ -15,18 +15,28 @@ interface LoadingOverlayProps {
 
 export default function LoadingOverlay({ isVisible }: LoadingOverlayProps) {
   const [stepIndex, setStepIndex] = useState(0);
+  const [elapsedMs, setElapsedMs] = useState(0);
 
   useEffect(() => {
     if (!isVisible) {
       setStepIndex(0);
+      setElapsedMs(0);
       return;
     }
+
+    const start = Date.now();
+    const timerInterval = setInterval(() => {
+      setElapsedMs(Date.now() - start);
+    }, 50);
 
     const interval = setInterval(() => {
       setStepIndex((prev) => (prev + 1) % processingSteps.length);
     }, 1500);
 
-    return () => clearInterval(interval);
+    return () => {
+      clearInterval(interval);
+      clearInterval(timerInterval);
+    };
   }, [isVisible]);
 
   if (!isVisible) return null;
@@ -47,10 +57,14 @@ export default function LoadingOverlay({ isVisible }: LoadingOverlayProps) {
           </div>
         </div>
 
-        <h3 className="loading-title">Processing with pix2pix GAN</h3>
+        <h3 className="loading-title">Processing with Two-Stage Pipeline</h3>
         <p className="loading-step" key={stepIndex}>
           {processingSteps[stepIndex]}
         </p>
+
+        <div style={{ marginTop: '16px', fontSize: '18px', fontFamily: 'monospace', color: 'var(--brand-blue)' }}>
+          {(elapsedMs / 1000).toFixed(2)}s elapsed
+        </div>
 
         {/* Progress dots */}
         <div className="loading-dots">

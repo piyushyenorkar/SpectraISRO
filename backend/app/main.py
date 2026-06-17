@@ -62,7 +62,7 @@ async def root():
         "version": "1.0.0",
         "description": "Infrared Image Colorization & Enhancement",
         "endpoints": {
-            "POST /api/colorize": "Upload IR image for colorization",
+            "POST /api/process": "Upload IR image for 2-stage processing",
             "GET /health": "API health check",
         },
     }
