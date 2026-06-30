@@ -8,8 +8,8 @@ export default function HeroSection() {
       {/* Animated background */}
       <div className="hero-bg">
         <div style={{ position: 'absolute', inset: 0, opacity: 0.6 }}>
-          <Strands 
-            colors={['#2563eb', '#6366f1', '#0ea5e9', '#38bdf8']} 
+          <Strands
+            colors={['#2563eb', '#6366f1', '#0ea5e9', '#38bdf8']}
             speed={0.6}
             count={4}
             thickness={1}

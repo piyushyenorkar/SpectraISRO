@@ -3,12 +3,10 @@ import './MetricsPanel.css';
 
 interface MetricsPanelProps {
   metrics: {
-    processing_time_ms: number;
-    dynamic_range_ir: number;
-    dynamic_range_color: number;
-    entropy_ir: number;
-    entropy_color: number;
-    information_gain: number;
+    inference_time_ms: number;
+    psnr: number;
+    ssim: number;
+    fid: number;
   };
 }
 
@@ -39,19 +37,12 @@ function AnimatedNumber({ value, suffix = '', decimals = 1 }: { value: number; s
 }
 
 export default function MetricsPanel({ metrics }: MetricsPanelProps) {
-  // Calculate a "quality score" from 0–100 based on metrics
-  const qualityScore = Math.min(100, Math.round(
-    (metrics.dynamic_range_color * 50) +
-    (metrics.entropy_color * 5) +
-    (metrics.information_gain > 0 ? 20 : 0)
-  ));
-
   return (
     <div className="metrics-panel" id="metrics-panel">
       <h3 className="metrics-title">Enhancement Metrics</h3>
 
       <div className="metrics-grid">
-        {/* Processing Time */}
+        {/* Inference Time */}
         <div className="metric-card metric-card-purple">
           <div className="metric-icon">
             <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
@@ -61,13 +52,13 @@ export default function MetricsPanel({ metrics }: MetricsPanelProps) {
           </div>
           <div className="metric-info">
             <span className="metric-value">
-              <AnimatedNumber value={metrics.processing_time_ms} suffix="ms" decimals={0} />
+              <AnimatedNumber value={metrics.inference_time_ms} suffix="ms" decimals={0} />
             </span>
-            <span className="metric-label">Processing Time</span>
+            <span className="metric-label">Inference Time</span>
           </div>
         </div>
 
-        {/* Dynamic Range */}
+        {/* PSNR */}
         <div className="metric-card metric-card-blue">
           <div className="metric-icon">
             <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
@@ -77,13 +68,13 @@ export default function MetricsPanel({ metrics }: MetricsPanelProps) {
           </div>
           <div className="metric-info">
             <span className="metric-value">
-              <AnimatedNumber value={metrics.dynamic_range_color} decimals={3} />
+              <AnimatedNumber value={metrics.psnr} suffix=" dB" decimals={2} />
             </span>
-            <span className="metric-label">Dynamic Range</span>
+            <span className="metric-label">PSNR (Quality)</span>
           </div>
         </div>
 
-        {/* Information Gain */}
+        {/* SSIM */}
         <div className="metric-card metric-card-green">
           <div className="metric-icon">
             <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
@@ -93,13 +84,13 @@ export default function MetricsPanel({ metrics }: MetricsPanelProps) {
           </div>
           <div className="metric-info">
             <span className="metric-value">
-              +<AnimatedNumber value={metrics.information_gain} decimals={3} />
+              <AnimatedNumber value={metrics.ssim} decimals={3} />
             </span>
-            <span className="metric-label">Info Gain (Entropy)</span>
+            <span className="metric-label">SSIM (Structure)</span>
           </div>
         </div>
 
-        {/* Quality Score */}
+        {/* FID */}
         <div className="metric-card metric-card-accent">
           <div className="metric-icon">
             <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
@@ -108,9 +99,9 @@ export default function MetricsPanel({ metrics }: MetricsPanelProps) {
           </div>
           <div className="metric-info">
             <span className="metric-value">
-              <AnimatedNumber value={qualityScore} suffix="/100" decimals={0} />
+              <AnimatedNumber value={metrics.fid} decimals={2} />
             </span>
-            <span className="metric-label">Quality Score</span>
+            <span className="metric-label">FID Score</span>
           </div>
         </div>
       </div>

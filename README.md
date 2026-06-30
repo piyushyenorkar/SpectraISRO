@@ -1,314 +1,80 @@
-# 🔬 SPECTRA — Infrared Image Colorization & Enhancement
-
-> **Bharatiya Antariksh Hackathon 2026 | Problem Statement 10**
-> ISRO × Hack2skill — 3rd Edition
-
-[![Python](https://img.shields.io/badge/Python-3.11+-3776AB?logo=python&logoColor=white)](https://python.org)
-[![PyTorch](https://img.shields.io/badge/PyTorch-2.0+-EE4C2C?logo=pytorch&logoColor=white)](https://pytorch.org)
-[![React](https://img.shields.io/badge/React-18+-61DAFB?logo=react&logoColor=black)](https://react.dev)
-[![FastAPI](https://img.shields.io/badge/FastAPI-0.115+-009688?logo=fastapi&logoColor=white)](https://fastapi.tiangolo.com)
+<div align="center">
+  <img src="frontend/public/faviconspectra.png" alt="SPECTRA Logo" width="150"/>
+  <h1>SPECTRA</h1>
+  <p><b>Infrared Image Colorization & Enhancement</b></p>
+  <p><i>Bharatiya Antariksh Hackathon 2026 | Problem Statement 10 | ISRO × Hack2skill</i></p>
+  
+  [![Python](https://img.shields.io/badge/Python-3.11+-3776AB?logo=python&logoColor=white)](https://python.org)
+  [![PyTorch](https://img.shields.io/badge/PyTorch-2.0+-EE4C2C?logo=pytorch&logoColor=white)](https://pytorch.org)
+  [![ONNX](https://img.shields.io/badge/ONNX-Runtime-005CED?logo=onnx&logoColor=white)](https://onnxruntime.ai/)
+</div>
 
 ---
 
 ## 🎯 What is SPECTRA?
 
-SPECTRA is an AI-powered system that transforms raw grayscale infrared (thermal) images into vivid, interpretable RGB images using a **pix2pix Generative Adversarial Network (GAN)**.
+SPECTRA is an AI-powered system designed to transform raw, low-resolution Thermal Infrared (TIR) satellite imagery into high-resolution, vivid, and physically consistent RGB images. 
 
-**Problem:** IR cameras produce grayscale images that are hard for humans to interpret because our visual system is optimized for color.
+**The Challenge:** Satellite thermal sensors (like Landsat 9 TIRS) capture data at a much lower native resolution (100m) compared to optical sensors (30m). Existing single-stage colorization models fail when faced with this severe resolution mismatch, leading to significant hallucination and blurry outputs.
 
-**Solution:** SPECTRA uses a trained U-Net Generator to automatically colorize IR images, making thermal data instantly understandable for Earth observation, surveillance, and remote sensing.
-
----
-
-## 🏗️ Architecture
-
-```
-┌──────────────────────────────────────────┐
-│   Frontend (React + TypeScript + Vite)   │
-│   • Upload IR image                      │
-│   • Before/After slider comparison       │
-│   • ONNX Runtime Web (browser inference) │
-│   • Metrics display + download           │
-└────────────────┬─────────────────────────┘
-                 │ REST API (fallback)
-┌────────────────▼─────────────────────────┐
-│     Backend (FastAPI + Python)            │
-│     • Image preprocessing                │
-│     • PyTorch model inference             │
-│     • PSNR/SSIM/entropy metrics           │
-└────────────────┬─────────────────────────┘
-                 │
-┌────────────────▼─────────────────────────┐
-│   ML Model (pix2pix GAN — PyTorch)       │
-│   • Generator: U-Net (8-level)           │
-│   • Discriminator: PatchGAN (70×70)      │
-│   • Loss: Adversarial + L1 (λ=100)       │
-│   • Training: 200 epochs on FLIR dataset │
-└──────────────────────────────────────────┘
-```
-
-### Key Innovation: Browser-Side Inference
-SPECTRA exports the trained model to **ONNX format** and runs inference directly in the browser using **ONNX Runtime Web** — no server required! This means:
-- Zero latency (no network round-trip)
-- Works offline after initial model download
-- Privacy-preserving (images never leave your device)
+**The Solution:** SPECTRA explicitly decouples the problem into a dedicated **two-stage cascade pipeline**—first recovering spatial details through a Super-Resolution Sub-Pixel Network, and then mapping the enhanced TIR to RGB using a Conditional GAN, enforced by a custom thermodynamic constraint.
 
 ---
 
-## ⚠️ Files NOT Included in Git (You Must Create/Download)
+## 🏗️ The Two-Stage Architecture
 
-The following files are **gitignored** because they are too large or machine-generated. After cloning, you need to set them up:
+Our architecture is specifically optimized for ISRO's Landsat-9 preprocessing requirements.
 
-| File / Folder | Size | How to Get It |
-|---------------|------|---------------|
-| `frontend/node_modules/` | ~200 MB | Run `npm install` inside `frontend/` |
-| `ml/data/` (train/val paired dataset) | ~1 GB | Run the preprocessing script (see Step 2 below) |
-| `backend/model/generator_best.pth` | ~220 MB | Train the model in Colab, then download (see Step 4) |
-| `frontend/public/model/spectra_generator.onnx` | ~220 MB | Exported during Colab training, then download (see Step 4) |
-| `backend/model/*.onnx` | ~220 MB | Exported during Colab training (optional server-side) |
-| `ml/checkpoints/` | varies | Auto-generated during training |
-| `ml/samples/` | varies | Auto-generated during training |
-| `backend/.env` | tiny | Copy from `backend/.env.example` and edit |
-| `frontend/dist/` | ~5 MB | Auto-generated by `npm run build` (production only) |
+### Stage 1: Super-Resolution TIR Sub-Pixel Generation
+- **Input:** Single-channel TIR image @ 200m resolution.
+- **Model:** Efficient Sub-Pixel Convolutional Neural Network (ESPCN).
+- **Process:** Instead of standard deconvolution, it extracts features in the low-resolution space and uses a sub-pixel convolution layer (`PixelShuffle`) to upscale the image.
+- **Output:** Enhanced, high-resolution TIR image @ 100m resolution.
 
----
-
-## 🚀 Setup Guide (After Cloning)
-
-### Prerequisites
-- **Node.js** 18+ and npm
-- **Python** 3.10+
-- **PyTorch** 2.0+ (only needed for backend inference)
-- **Google Account** (for Colab training)
+### Stage 2: Pix2Pix Colorization with Thermodynamic Constraint
+- **Input:** The enhanced high-resolution TIR image from Stage 1.
+- **Generator (U-Net):** An 8-level encoder-decoder with skip connections synthesizes the RGB colorization.
+- **Discriminator (PatchGAN):** Evaluates the spatial accuracy of the colorization across 70x70 patches rather than the whole image, forcing the model to generate high-frequency textural details.
+- **The USP (Physics-Informed Modeling):** A custom **Thermal Emissivity Constraint** ($\lambda_{physics}$) is injected into the loss function. This ensures thermodynamic consistency—for example, preventing cold water bodies from being colorized as hot urban surfaces. This completely eliminates thermodynamically impossible color assignments (hallucinations).
 
 ---
 
-### Step 1: Install Dependencies
+## 🚀 Unified Loss Function
+Our unified loss function ensures both mathematical accuracy and physical reality:
 
-**Frontend:**
-```bash
-cd frontend
-npm install
-npm run dev       # → http://localhost:5173
-```
-
-**Backend:**
-```bash
-cd backend
-cp .env.example .env     # Create env file
-pip install -r requirements.txt
-uvicorn app.main:app --reload --port 8000
-```
-
-> **Note:** The frontend will work without the backend. The website (landing page, UI) runs standalone. Backend + model weights are only needed for the actual IR → RGB colorization.
+$$L_{total} = L_{1\_SR} + L_{1\_Color} + L_{GAN} + \lambda_{physics}$$
 
 ---
 
-### Step 2: Prepare the Training Dataset
+## 💻 Tech Stack & Infrastructure
 
-1. **Download** the [FLIR ADAS v2 Dataset](https://www.flir.com/oem/adas/adas-dataset-form/) and extract it.
+We achieved enterprise-grade thermal modeling entirely with **zero-cost, open-source infrastructure**:
 
-2. **Run the preprocessing script** to create paired IR/RGB images:
-```bash
-cd ml
-pip install Pillow tqdm
-python preprocess_flir.py --input "C:/path/to/FLIR_Dataset" --output data
-```
-
-This reads the `index.json` metadata files to correctly match thermal ↔ RGB frames and produces:
-```
-ml/data/
-├── train/
-│   ├── A/   (7,472 IR grayscale images, 256×256)
-│   └── B/   (7,472 RGB color images, 256×256)
-└── val/
-    ├── A/   (872 IR images)
-    └── B/   (872 RGB images)
-```
+*   **Deep Learning Models:** PyTorch 2.0+ (pix2pix GAN, Sub-Pixel Convolution, Custom Thermal Emissivity Loss).
+*   **Data Handling & I/O:** Google Earth Engine API (for automated Landsat 9 data acquisition), Rasterio, GDAL.
+*   **Evaluation & Diagnostics:** PSNR, SSIM (scikit-image), and a Custom Visual Inspection Module for real-time hallucination detection.
+*   **Compute & Deployment:** Google Colab (T4 GPU training) and ONNX Runtime for low-latency, edge-ready inference.
 
 ---
 
-### Step 3: Upload Dataset to Google Drive
-
-Upload the `ml/data/` folder to Google Drive:
-```
-My Drive/
-  SPECTRA/
-    data/
-      train/
-        A/  (IR images)
-        B/  (RGB images)
-      val/
-        A/
-        B/
-```
-
----
-
-### Step 4: Train the Model (Google Colab)
-
-1. Open `ml/notebooks/SPECTRA_Training.ipynb` in [Google Colab](https://colab.research.google.com)
-2. Go to **Runtime → Change runtime type → T4 GPU → Save**
-3. Run cells **one by one** (Cell 2 will ask for Drive permission)
-4. Cell 7 is the training cell — takes **4-6 hours**, let it run
-5. After training, download these 2 files from Google Drive → `SPECTRA/checkpoints/`:
-
-| File | Put it in |
-|------|-----------|
-| `generator_best.pth` | `backend/model/` |
-| `spectra_generator.onnx` | `frontend/public/model/` |
-
----
-
-### Step 5: Run the Full App
-
-Once model weights are in place:
-
-```bash
-# Terminal 1 — Frontend
-cd frontend
-npm run dev
-
-# Terminal 2 — Backend
-cd backend
-uvicorn app.main:app --reload --port 8000
-```
-
-Open `http://localhost:5173`, upload an IR image, and see it colorized!
-
----
-
-## 📊 Model Details
-
-| Component | Details |
-|-----------|---------|
-| **Architecture** | pix2pix (Isola et al., 2017) |
-| **Generator** | U-Net with 8-level encoder-decoder + skip connections |
-| **Discriminator** | PatchGAN (70×70 receptive field) |
-| **Input** | 256×256 grayscale IR image |
-| **Output** | 256×256 RGB colorized image |
-| **Loss** | LSGAN adversarial + L1 reconstruction (λ=100) |
-| **Optimizer** | Adam (lr=0.0002, β1=0.5, β2=0.999) |
-| **Dataset** | FLIR ADAS Thermal Dataset (14k+ paired IR/RGB) |
-| **Training** | 200 epochs, batch_size=1, ~4-6 hours on T4 GPU |
-| **Parameters** | ~54M (Generator) + ~2.7M (Discriminator) |
-
-### Evaluation Metrics
-- **PSNR** (Peak Signal-to-Noise Ratio) — measures pixel-level accuracy
-- **SSIM** (Structural Similarity Index) — measures structural preservation
-- **Information Entropy Gain** — measures increase in visual information
-- **Dynamic Range Expansion** — measures color richness improvement
-
----
-
-## 📁 Project Structure
+## 📁 Repository Structure
 
 ```
 Spectra-ISRO/
-├── frontend/          # React + Vite + TypeScript
-│   ├── src/
-│   │   ├── components/   # UI components (Slider, Upload, Metrics...)
-│   │   ├── pages/        # Landing page + Process page
-│   │   └── hooks/        # ONNX browser inference hook
-│   └── public/model/     # ONNX model for browser inference
-│
-├── backend/           # FastAPI + PyTorch
-│   ├── app/
-│   │   ├── routes/       # API endpoints
-│   │   ├── services/     # Inference + metrics
-│   │   ├── models/       # Generator architecture
-│   │   └── utils/        # Pre/post processing
-│   └── model/            # PyTorch checkpoint (.pth)
-│
-├── ml/                # Training pipeline
-│   ├── models/           # Generator + Discriminator
-│   ├── notebooks/        # Colab training notebook
-│   ├── train.py          # Training script
-│   ├── evaluate.py       # PSNR/SSIM evaluation
-│   ├── export_onnx.py    # ONNX export + quantization
-│   └── preprocess_flir.py # Dataset preprocessing
-│
+├── frontend/          # Visual Inspection Module & Interactive UI
+├── backend/           # FastAPI fallback inference & metric calculation
+├── ml/                # Core Machine Learning Pipeline
+│   ├── models/           # Stage 1 (ESPCN) & Stage 2 (pix2pix) definitions
+│   ├── notebooks/        # End-to-end training pipeline
+│   ├── dataset.py        # Custom Dataset loader for TIR-RGB pairs
+│   ├── train.py          # Unified training loop
+│   ├── evaluate.py       # PSNR/SSIM calculation suite
+│   └── export_onnx.py    # ONNX export for zero-friction deployment
 └── README.md
 ```
 
 ---
 
-## 🔧 Tech Stack
-
-| Layer | Technology |
-|-------|-----------|
-| **ML Model** | PyTorch, pix2pix GAN |
-| **Training** | Google Colab (T4 GPU) |
-| **Backend** | Python, FastAPI, Uvicorn |
-| **Image Processing** | Pillow, scikit-image, OpenCV |
-| **Frontend** | React 18, TypeScript, Vite |
-| **Browser Inference** | ONNX Runtime Web (WebGL/WASM) |
-| **Deployment** | Vercel (FE) + Railway (BE) |
-| **Dataset** | FLIR ADAS Thermal Dataset |
-
----
-
-## 🏆 ISRO Use Case
-
-SPECTRA directly addresses the need for enhanced visualization of satellite-based thermal/infrared data:
-- **Earth Observation**: Colorize thermal imagery from ISRO's remote sensing satellites
-- **Disaster Management**: Improve interpretation of thermal hotspots during wildfires
-- **Urban Planning**: Visualize heat island effects in cities
-- **Agricultural Monitoring**: Enhanced crop health assessment from thermal data
-
----
-
-## 👥 Team SPECTRA
-
-Built for **Bharatiya Antariksh Hackathon 2026** (BAH 2026)
-Problem Statement 10: Infrared Image Colorization & Enhancement
-
----
-
-*© 2026 Team SPECTRA — Indian Space Research Organisation × Hack2skill*
-
-
-
-
-🅰️ Path A: Download to PC → Preprocess → Upload to Colab (Slower)
-Step 1: Extract the downloaded ZIP
-
-Right-click the ZIP → Extract All → C:\Users\piyus\Downloads\FLIR_Dataset\
-Step 2: Tell me the folder path once extracted — I'll run the preprocessing script that creates the paired train/A (IR) + train/B (RGB) folders
-
-Step 3: Upload the processed data/ folder to your Google Drive:
-
-Google Drive → Create folder "SPECTRA" → Inside it, drag the "data" folder
-Your Drive should look like:
-
-My Drive/
-  SPECTRA/
-    data/
-      train/
-        A/  (IR images)
-        B/  (RGB images)
-      val/
-        A/
-        B/
-Step 4: Open Google Colab → File → Upload Notebook → Upload → select ml/notebooks/SPECTRA_Training.ipynb from your PC
-
-Step 5: In Colab, click Runtime → Change runtime type → T4 GPU → Save
-
-Step 6: Run cells one by one (click ▶️ on each cell):
-
-Cell 1: Check GPU ✅
-Cell 2: Mount Drive + verify dataset ✅
-Cell 3: Install dependencies ✅
-Cell 4: Define model ✅
-Cell 5: Load dataset + see sample ✅
-Cell 6: Setup training ✅
-Cell 7: TRAIN ⏳ (this takes 4-6 hours — let it run, go sleep!)
-Cell 8: See results ✅
-Cell 9: Export ONNX ✅
-Cell 10: See download instructions ✅
-Step 7: After training finishes, go to Google Drive → SPECTRA/checkpoints/ → download these 2 files:
-
-generator_best.pth          → Put in: Spectra-ISRO/backend/model/
-spectra_generator.onnx      → Put in: Spectra-ISRO/frontend/public/model/
-Step 8: Tell me "done" — I'll verify everything works end-to-end 🚀
-
+## 👥 Team STARCY
+Built for **Bharatiya Antariksh Hackathon 2026** (BAH 2026)  
+*Problem Statement 10: Infrared Image Colorization & Enhancement*

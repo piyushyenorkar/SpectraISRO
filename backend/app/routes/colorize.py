@@ -1,6 +1,6 @@
 """
-SPECTRA — Colorize API Route
-POST /colorize — accepts IR image, returns colorized RGB + metrics
+SPECTRA — Process API Route
+POST /process — accepts IR image, runs Model A + Model B, returns 4 images + metrics
 """
 
 from fastapi import APIRouter, UploadFile, File, HTTPException
@@ -11,13 +11,13 @@ from app.utils.preprocessing import validate_image
 router = APIRouter()
 
 
-@router.post("/colorize")
-async def colorize_image(file: UploadFile = File(...)):
+@router.post("/process")
+async def process_image(file: UploadFile = File(...)):
     """
-    Colorize an infrared image.
+    Process an infrared image through the 2-stage pipeline.
 
     Accepts: multipart/form-data with 'file' field (PNG/JPG)
-    Returns: JSON with colorized image (base64) and metrics
+    Returns: JSON with 4 images (base64) and metrics
     """
     # Read file
     file_bytes = await file.read()
@@ -36,7 +36,7 @@ async def colorize_image(file: UploadFile = File(...)):
         )
 
     try:
-        result = inference_service.colorize(file_bytes)
+        result = inference_service.process(file_bytes)
         return {
             "success": True,
             "data": result,

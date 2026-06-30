@@ -37,6 +37,14 @@ export default function ProcessPage() {
     link.click();
   };
 
+  const handleDownloadSR = () => {
+    if (!result) return;
+    const link = document.createElement('a');
+    link.href = result.super_resolved_image;
+    link.download = 'spectra_super_resolved.png';
+    link.click();
+  };
+
   const handleTryAnother = () => {
     reset();
   };
@@ -47,10 +55,7 @@ export default function ProcessPage() {
       <LoadingOverlay isVisible={isLoading} />
 
       <main className="process-page">
-        <div className="vertical-branding-container">
-          <img src="/faviconspectra.png" alt="SPECTRA Logo" className="vertical-branding-logo" />
-          <div className="vertical-branding">SPECTRA</div>
-        </div>
+        {/* Vertical branding removed per user request */}
         {/* Animated background across the whole layout */}
         <div className="process-bg">
           <div style={{ position: 'absolute', inset: 0, opacity: 0.5 }}>
@@ -85,72 +90,123 @@ export default function ProcessPage() {
             </h1>
           </div>
 
-          {/* Split Layout */}
-          <div className="process-split-layout animate-fade-in-up">
+          {/* 1x4 Full-Width Pipeline Layout */}
+          <div className="process-pipeline-layout animate-fade-in-up">
 
-            {/* Left Box: Upload */}
-            <div className="process-box glass-panel process-box-upload">
-              <UploadZone onFileSelected={handleFileSelected} disabled={isLoading} />
-
-              {error && (
-                <div className="process-error">
-                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
-                    <circle cx="12" cy="12" r="10" />
-                    <line x1="12" y1="8" x2="12" y2="12" />
-                    <line x1="12" y1="16" x2="12.01" y2="16" />
-                  </svg>
-                  {error}
+            {/* Box 1: Input / Upload */}
+            <div className="process-box glass-panel process-box-step">
+              {!result ? (
+                <div className="step-upload-container">
+                  <UploadZone onFileSelected={handleFileSelected} disabled={isLoading} />
+                  {error && (
+                    <div className="process-error">
+                      {error}
+                    </div>
+                  )}
+                </div>
+              ) : (
+                <div className="step-image-container">
+                  <div className="step-overlay-label">Input TIR (200m)</div>
+                  <img src={result.input_image} alt="Input TIR" />
                 </div>
               )}
             </div>
 
-            {/* Right Box: Results or Placeholder */}
-            <div className="process-box glass-panel process-box-results">
+            {/* Box 2: Super-Resolved */}
+            <div className="process-box glass-panel process-box-step">
               {!result ? (
                 <div className="process-empty-state">
                   <div className="process-empty-icon">
                     <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
-                      <rect x="3" y="3" width="18" height="18" rx="2" ry="2" />
-                      <circle cx="8.5" cy="8.5" r="1.5" />
-                      <polyline points="21 15 16 10 5 21" />
+                      <polygon points="12 2 2 7 12 12 22 7 12 2"></polygon>
+                      <polyline points="2 17 12 22 22 17"></polyline>
+                      <polyline points="2 12 12 17 22 12"></polyline>
                     </svg>
                   </div>
-                  <h3>Waiting for Image</h3>
-                  <p>Upload an IR image on the left to see the RGB transformation here.</p>
+                  <h3>Super-Resolved TIR</h3>
+                  <p>Awaiting Input<br />Enhances thermal resolution</p>
                 </div>
               ) : (
-                <div className="process-results-content">
-                  <div className="process-slider-wrapper">
-                    <BeforeAfterSlider
-                      beforeImage={result.ir_preview}
-                      afterImage={result.colorized_image}
-                    />
-                  </div>
+                <div className="step-image-container">
+                  <div className="step-overlay-label">Super-Resolved TIR</div>
+                  <img src={result.super_resolved_image} alt="Super-Resolved TIR" />
+                </div>
+              )}
+            </div>
 
-                  <MetricsPanel metrics={result.metrics} />
-
-                  <div className="process-actions">
-                    <button className="btn btn-primary" onClick={handleDownload} id="download-btn">
-                      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
-                        <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
-                        <polyline points="7 10 12 15 17 10" />
-                        <line x1="12" y1="15" x2="12" y2="3" />
-                      </svg>
-                      Download
-                    </button>
-                    <button className="btn btn-secondary" onClick={handleTryAnother} id="try-another-btn">
-                      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
-                        <polyline points="1 4 1 10 7 10" />
-                        <path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10" />
-                      </svg>
-                      Try Another
-                    </button>
+            {/* Box 3: Colorized RGB */}
+            <div className="process-box glass-panel process-box-step">
+              {!result ? (
+                <div className="process-empty-state">
+                  <div className="process-empty-icon">
+                    <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+                      <circle cx="12" cy="12" r="10"></circle>
+                      <line x1="14.31" y1="8" x2="20.05" y2="17.94"></line>
+                      <line x1="9.69" y1="8" x2="21.17" y2="8"></line>
+                      <line x1="7.38" y1="12" x2="13.12" y2="2.06"></line>
+                      <line x1="9.69" y1="16" x2="3.95" y2="6.06"></line>
+                      <line x1="14.31" y1="16" x2="2.83" y2="16"></line>
+                      <line x1="16.62" y1="12" x2="10.88" y2="21.94"></line>
+                    </svg>
                   </div>
+                  <h3>Colorized RGB</h3>
+                  <p>Awaiting Inference<br />Translates TIR to visible RGB</p>
+                </div>
+              ) : (
+                <div className="step-image-container">
+                  <div className="step-overlay-label">Colorized RGB</div>
+                  <img src={result.colorized_image} alt="Colorized RGB" />
+                </div>
+              )}
+            </div>
+
+            {/* Box 4: Ground Truth */}
+            <div className="process-box glass-panel process-box-step">
+              {!result ? (
+                <div className="process-empty-state">
+                  <div className="process-empty-icon">
+                    <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+                      <circle cx="12" cy="12" r="10"></circle>
+                      <circle cx="12" cy="12" r="6"></circle>
+                      <circle cx="12" cy="12" r="2"></circle>
+                    </svg>
+                  </div>
+                  <h3>Real RGB</h3>
+                  <p>Optional Reference Image<br/>Upload for metric evaluation</p>
+                </div>
+              ) : (
+                <div className="step-image-container">
+                  <div className="step-overlay-label">Real RGB</div>
+                  {result.reference_image ? (
+                    <img src={result.reference_image} alt="Real RGB" />
+                  ) : (
+                    <div style={{ padding: '24px', textAlign: 'center', color: 'var(--text-secondary)' }}>
+                      No reference image provided
+                    </div>
+                  )}
                 </div>
               )}
             </div>
 
           </div>
+
+          {/* Metrics and Actions displayed below when result exists */}
+          {result && (
+            <div className="process-footer animate-fade-in-up delay-1" style={{ marginTop: '24px', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '24px' }}>
+              <MetricsPanel metrics={result.metrics} />
+              <div className="process-actions">
+                <button className="btn btn-primary" onClick={handleDownloadSR} id="download-sr-btn">
+                  Download TIR (100m)
+                </button>
+                <button className="btn btn-primary" onClick={handleDownload} id="download-rgb-btn">
+                  Download RGB (100m)
+                </button>
+                <button className="btn btn-secondary" onClick={handleTryAnother} id="try-another-btn">
+                  Process Another
+                </button>
+              </div>
+            </div>
+          )}
 
           {/* Info cards horizontally centered below the split layout */}
           {!result && (
@@ -195,8 +251,8 @@ export default function ProcessPage() {
                   </svg>
                 </div>
                 <div className="process-info-text">
-                  <h4>pix2pix GAN</h4>
-                  <p>U-Net generator with PatchGAN discriminator</p>
+                  <h4>Dual-Model Architecture</h4>
+                  <p>ESRGAN for upscaling & Pix2Pix for colorization</p>
                 </div>
               </div>
             </div>
