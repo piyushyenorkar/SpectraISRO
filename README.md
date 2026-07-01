@@ -1,5 +1,5 @@
 <div align="center">
-  <img src="spectralogo.jpeg" alt="SPECTRA Logo" width="150"/>
+  <img src="frontend/assets/spectralogo.jpeg" alt="SPECTRA Logo" width="150"/>
   <h1>SPECTRA</h1>
   <p><b>Infrared Image Colorization & Enhancement</b></p>
   <p><i>Bharatiya Antariksh Hackathon 2026 | Problem Statement 10 | ISRO × Hack2skill</i></p>
